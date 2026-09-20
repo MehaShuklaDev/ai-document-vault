@@ -17,7 +17,7 @@ from app.ai.analysis import SummaryOptions, aanalyse_document, acompare_document
 from app.ai.providers import LLMError
 from app.ai.structured import CATEGORY_TO_SCHEMA, SCHEMAS, aextract_structured, schema_for_category
 from app.ai.usage import arecord_usage
-from app.api.deps import get_current_user, upload_rate_limit
+from app.api.deps import get_current_user, quota_check, upload_rate_limit
 from app.core.config import get_settings
 from app.core.db import get_async_sessionmaker, get_db
 from app.core.logging import get_logger
@@ -227,7 +227,7 @@ async def list_documents(
     return DocumentPage(items=[DocumentOut.model_validate(r) for r in rows], total=total, limit=limit, offset=offset)
 
 
-@router.post("/compare", response_model=CompareOut, summary="AI comparison of two documents")
+@router.post("/compare", response_model=CompareOut, dependencies=[Depends(quota_check)], summary="AI comparison of two documents")
 async def compare_documents(body: CompareRequest, db: AsyncSession = Depends(get_db), user: str = Depends(get_current_user)):
     if body.document_id_a == body.document_id_b:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "pick two different documents")
@@ -368,7 +368,9 @@ async def get_extraction(document_id: uuid.UUID, db: AsyncSession = Depends(get_
     return _extraction_out(doc, ins, cached=True)
 
 
-@router.post("/{document_id}/extraction", response_model=ExtractionOut, summary="Run structured extraction with a chosen schema")
+@router.post(
+    "/{document_id}/extraction", response_model=ExtractionOut, dependencies=[Depends(quota_check)], summary="Run structured extraction with a chosen schema"
+)
 async def run_extraction(document_id: uuid.UUID, body: ExtractionRequest, db: AsyncSession = Depends(get_db), user: str = Depends(get_current_user)):
     doc = await _get_owned_document(db, document_id, user)
     if doc.status != DocumentStatus.ready:
@@ -443,7 +445,9 @@ async def get_insights(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
     return _insight_out(doc, ins, cached=True)
 
 
-@router.post("/{document_id}/summary", response_model=InsightsOut, summary="Generate a customised summary (length / tone / focus)")
+@router.post(
+    "/{document_id}/summary", response_model=InsightsOut, dependencies=[Depends(quota_check)], summary="Generate a customised summary (length / tone / focus)"
+)
 async def custom_summary(document_id: uuid.UUID, body: SummaryRequest, db: AsyncSession = Depends(get_db), user: str = Depends(get_current_user)):
     doc = await _get_owned_document(db, document_id, user)
     if doc.status != DocumentStatus.ready:

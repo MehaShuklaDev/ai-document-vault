@@ -34,7 +34,9 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check . && ruff format --check .
       - run: alembic upgrade head
-      - run: pytest -q
+      - run: pytest -q --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with: { name: coverage, path: coverage.xml }
       - name: Eval (fake provider, strict thresholds)
         run: python scripts/eval.py --strict --md eval-report.md --json eval-results.json
       - uses: actions/upload-artifact@v4

@@ -8,6 +8,7 @@ ignore = ["B008", "E731"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+addopts = "--cov=app --cov=evals --cov-report=term-missing:skip-covered --cov-fail-under=80"
 filterwarnings = ["ignore::DeprecationWarning"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
@@ -15,3 +16,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 "evals/*" = ["E501"]
 "app/ai/prompts.py" = ["E501"]
 "app/api/metrics.py" = ["E501"]
+[tool.coverage.run]
+omit = ["app/ai/providers.py:OpenAI*", "alembic/*", "scripts/*"]
+[tool.coverage.report]
+exclude_also = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError", "class OpenAILLM", "class OpenAIEmbeddings", "class AnthropicLLM", "class CrossEncoderReranker", "class S3Storage"]

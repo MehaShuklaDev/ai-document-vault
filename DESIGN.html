@@ -75,8 +75,8 @@
 
   <div class="kv">
     <div class="stat"><b>5</b><span>pipeline stages</span></div>
-    <div class="stat"><b>26</b><span>API endpoints</span></div>
-    <div class="stat"><b>59 + 11</b><span>tests + golden eval cases</span></div>
+    <div class="stat"><b>27</b><span>API endpoints</span></div>
+    <div class="stat"><b>61 · 83%</b><span>tests · coverage</span></div>
     <div class="stat"><b>0</b><span>keys needed to run tests</span></div>
   </div>
 
@@ -477,7 +477,7 @@ erDiagram
     <tr><td><code>POST /chat/sessions</code> · <code>GET</code> · <code>GET /{id}</code> · <code>DELETE</code></td><td>Sessions · history</td><td>1–20 documents; server-side multi-turn context</td></tr>
     <tr><td><code>POST /chat/sessions/{id}/ask</code> · <code>/ask/stream</code></td><td>Ask</td><td>citations, follow-ups, usage, cached flag; SSE variant</td></tr>
     <tr><td><code>GET /chat/providers</code></td><td>Resolved models</td><td>configured vs resolved provider</td></tr>
-    <tr><td><code>GET /metrics/documents</code> · <code>/processing</code> · <code>/costs</code> · <code>/prometheus</code></td><td>Monitoring</td><td>stats · p50/p95 per stage + failure rate · USD by purpose/model · scrape</td></tr>
+    <tr><td><code>GET /metrics/documents</code> · <code>/processing</code> · <code>/costs</code> · <code>/quota</code> · <code>/prometheus</code></td><td>Monitoring</td><td>stats · p50/p95 per stage + failure rate · USD by purpose/model · quota used/remaining · scrape</td></tr>
     <tr><td><code>GET /health/live</code> · <code>/ready</code></td><td>Probes</td><td>ready checks DB, pgvector extension, Redis</td></tr>
   </table>
   <p style="color:#64748b;font-size:12px">All requests are scoped by <code>X-User-Id</code> (default <code>demo-user</code>); identity is a single dependency — swap for JWT without touching routers.</p>
@@ -509,6 +509,7 @@ erDiagram
       <ul>
         <li><strong>Tenant isolation</strong> — <code>owner_id</code> on every table and every query; a foreign id returns <code>404</code>, not <code>403</code></li>
         <li><strong>Rate limiting</strong> — Redis sliding window (atomic Lua): chat 30/min, upload 20/min per user; <code>429</code> + <code>Retry-After</code>; fails <em>open</em> if Redis is down</li>
+        <li><strong>Quota management</strong> — rolling-24h USD / token cap per user on every AI-spending endpoint (ask, summary, compare, extraction); <code>429</code> + <code>X-Quota-*</code> headers; <code>GET /metrics/quota</code>. Rate limit bounds burst, quota bounds total spend</li>
         <li><strong>Grounded answers only</strong> — the prompt forbids outside knowledge and the verifier removes citations to passages that were never provided</li>
         <li><strong>Prompt-injection surface</strong> — document text is placed in numbered passages inside the system prompt with explicit rules; user questions are capped at 4 000 chars</li>
         <li><strong>No secrets in the repo</strong> — keys via <code>.env</code> (git-ignored); the CLI provider scrubs its environment</li>
@@ -549,7 +550,8 @@ erDiagram
   <!-- ══════════════════════════════════════════════════════════════ -->
   <h2 class="slate">Evaluation Harness &amp; Test Coverage</h2>
   <p style="margin-bottom:12px">
-    <span class="badge green">59 tests</span>
+    <span class="badge green">61 tests</span>
+    <span class="badge green">83% coverage (gate 80%)</span>
     <span class="badge green">11 golden eval cases</span>
     <span class="badge blue">0 failing</span>
     <span class="badge blue">answer accuracy 1.0 · citation P/R 1.0</span>
@@ -586,6 +588,7 @@ flowchart LR
         <li><strong>Chat</strong> — multi-turn with condensed follow-up, citations, cache hit, history; multi-document; reranker enabled</li>
         <li><strong>SSE</strong> — event order for chat and status streams</li>
         <li><strong>Custom summary cache</strong>, compare, all three metrics endpoints, health</li>
+        <li><strong>Quota</strong> — disabled by default; exhausted quota → 429 on ask/summary, other tenants unaffected</li>
         <li><strong>Golden eval</strong> runs as a test with CI thresholds</li>
       </ul>
     </div>
@@ -595,7 +598,7 @@ flowchart LR
   <h2 class="slate">Real Run — Screenshots</h2>
   <p class="lead">Produced by <code>python scripts/demo.py</code> against a live stack using Claude (Sonnet for answers and analysis, Haiku for the cheap steps) and captured from the built-in dashboard.</p>
   <div class="shots">
-    <div class="shot wide"><img src="docs/screenshots/dashboard-chat.png" alt="Dashboard: multi-document chat with citations"><div class="cap">Multi-document chat — grounded answers, verified citations with file/page, follow-up suggestions, per-answer tokens and cost</div></div>
+    <div class="shot wide"><img src="docs/screenshots/dashboard-chat.png" alt="Dashboard: multi-document chat with citations"><div class="cap">Multi-document chat — grounded answers, verified citations with file/page, follow-up suggestions, per-answer tokens and cost. Live SSE status bars during processing; select two docs for a one-click comparison</div></div>
     <div class="shot"><img src="docs/screenshots/insights-extraction.png" alt="Insights and structured extraction"><div class="cap">AI insights (summary, key points, sentiment, tags, suggested questions) and structured fields extracted with the <code>financial</code> schema</div></div>
     <div class="shot"><img src="docs/screenshots/swagger.png" alt="OpenAPI docs"><div class="cap">Auto-generated OpenAPI documentation at <code>/docs</code></div></div>
   </div>

@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     rate_limit_chat_per_minute: int = 30
     rate_limit_upload_per_minute: int = 20
 
+    # --- quota (per user, rolling 24 h; 0 = disabled) ---
+    quota_usd_per_user_per_day: float = 0.0
+    quota_tokens_per_user_per_day: int = 0
+
     # --- celery ---
     celery_task_soft_time_limit: int = 600
     celery_task_time_limit: int = 900

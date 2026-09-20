@@ -9,7 +9,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import Float, case, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, quota_usage
 from app.core.db import get_db
 from app.models import AIUsage, ChatMessage, ChatSession, Document, DocumentVersion, JobStage, JobStatus, ProcessingJob
 from app.schemas import CostByKey, CostMetrics, DocumentStats, ProcessingMetrics, StageMetrics
@@ -174,6 +174,11 @@ async def cost_metrics(hours: int = Query(24 * 30, ge=1, le=24 * 365), db: Async
         by_model=await _group(u.model),
         chat={"answers": int(chat_rows[0] or 0), "avg_latency_ms": _r(chat_rows[1]), "cached_answers": int(chat_rows[2] or 0)},
     )
+
+
+@router.get("/quota", summary="Rolling-24h AI spend vs the per-user quota")
+async def quota(db: AsyncSession = Depends(get_db), user: str = Depends(get_current_user)):
+    return await quota_usage(db, user)
 
 
 @router.get("/prometheus", include_in_schema=False)

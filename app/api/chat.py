@@ -14,7 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.ai import rag
 from app.ai.providers import LLMError, Usage, get_embeddings, get_llm
 from app.ai.usage import arecord_usage
-from app.api.deps import chat_rate_limit, get_current_user
+from app.api.deps import chat_rate_limit, get_current_user, quota_check
 from app.core.config import get_settings
 from app.core.db import get_async_sessionmaker, get_db
 from app.core.logging import get_logger
@@ -157,7 +157,10 @@ async def delete_session(session_id: uuid.UUID, db: AsyncSession = Depends(get_d
 # ask (JSON)
 # ---------------------------------------------------------------------------
 @router.post(
-    "/sessions/{session_id}/ask", response_model=AskResponse, dependencies=[Depends(chat_rate_limit)], summary="Ask a question (grounded answer with citations)"
+    "/sessions/{session_id}/ask",
+    response_model=AskResponse,
+    dependencies=[Depends(chat_rate_limit), Depends(quota_check)],
+    summary="Ask a question (grounded answer with citations)",
 )
 async def ask(session_id: uuid.UUID, body: AskRequest, db: AsyncSession = Depends(get_db), user: str = Depends(get_current_user)):
     prep = await _prepare(db, session_id, user)
@@ -200,7 +203,9 @@ async def ask(session_id: uuid.UUID, body: AskRequest, db: AsyncSession = Depend
 # ---------------------------------------------------------------------------
 # ask (SSE stream)
 # ---------------------------------------------------------------------------
-@router.post("/sessions/{session_id}/ask/stream", dependencies=[Depends(chat_rate_limit)], summary="Ask a question, streaming tokens over SSE")
+@router.post(
+    "/sessions/{session_id}/ask/stream", dependencies=[Depends(chat_rate_limit), Depends(quota_check)], summary="Ask a question, streaming tokens over SSE"
+)
 async def ask_stream(session_id: uuid.UUID, body: AskRequest, user: str = Depends(get_current_user)):
     """Server-Sent Events. Event sequence:
     `status` → `citations` (sources, before any token) → `token`* → `follow_ups` → `done` (persisted message ids + usage) | `error`.

@@ -197,3 +197,42 @@ async def test_chat_with_reranker_enabled(client, run_inline, monkeypatch):
         assert "1.5" in ans["content"] and ans["citations"][0]["filename"] == "handbook.md"
     finally:
         rerank_mod.get_reranker.cache_clear()
+
+
+# ------------------------------------------------------------------------ quota
+
+
+@integration
+@pytest.mark.asyncio
+async def test_quota_disabled_by_default_and_metrics_shape(client, run_inline):
+    r = await client.get(f"{P}/metrics/quota")
+    assert r.status_code == 200
+    q = r.json()
+    assert q["limit_usd"] is None and q["limit_tokens"] is None and q["exceeded"] is False and q["window_hours"] == 24
+
+
+@integration
+@pytest.mark.asyncio
+async def test_quota_blocks_ai_endpoints_when_exhausted(client, run_inline, monkeypatch, user_id):
+    from app.core.config import get_settings
+
+    s = get_settings()
+    monkeypatch.setattr(s, "quota_usd_per_user_per_day", 0.0)
+    monkeypatch.setattr(s, "quota_tokens_per_user_per_day", 100)  # tiny token quota
+
+    up = await client.post(f"{P}/documents", files={"file": ("report.txt", SAMPLE_TXT, "text/plain")})
+    doc_id = up.json()["document"]["id"]
+    # processing already recorded usage (embed + analysis + extraction) well above 100 tokens
+    q = (await client.get(f"{P}/metrics/quota")).json()
+    assert q["used_tokens"] > 100 and q["exceeded"] is True and q["remaining_tokens"] == 0
+
+    sid = (await client.post(f"{P}/chat/sessions", json={"document_ids": [doc_id]})).json()["id"]
+    r = await client.post(f"{P}/chat/sessions/{sid}/ask", json={"question": "anything"})
+    assert r.status_code == 429 and "quota" in r.json()["detail"] and r.headers.get("Retry-After") == "3600"
+    r = await client.post(f"{P}/documents/{doc_id}/summary", json={"length": "short"})
+    assert r.status_code == 429
+    # non-spending endpoints still work
+    assert (await client.get(f"{P}/documents/{doc_id}/insights")).status_code == 200
+    # another tenant is unaffected
+    other = await client.get(f"{P}/metrics/quota", headers={"X-User-Id": "someone-else"})
+    assert other.json()["exceeded"] is False

@@ -59,7 +59,7 @@
   </section>
   <section class="panel">
     <div class="stats" id="stats"></div>
-    <h2 id="chatTitle">Chat</h2>
+    <div style="display:flex;align-items:center;gap:10px"><h2 id="chatTitle" style="margin:0">Chat</h2><button id="compareBtn" class="primary" style="display:none;padding:4px 12px;font-size:12px;margin-left:auto" onclick="compareSelected()">⇄ Compare</button></div>
     <div class="chat" id="chat"><div class="empty">Select one or more <b>ready</b> documents, then ask a question.</div></div>
     <div class="followups" id="followups"></div>
     <form class="ask" id="ask"><input id="q" placeholder="Ask a question about the selected documents…" autocomplete="off"><button class="primary" id="send">Ask</button></form>
@@ -89,9 +89,45 @@ async function loadDocs() {
     <div class="stat"><b>${m.total_chunks}</b><span>chunks indexed</span></div>
     <div class="stat"><b>${(m.total_tokens/1000).toFixed(1)}k</b><span>tokens</span></div>
     <div class="stat"><b>$${c ? c.total_cost_usd.toFixed(4) : '–'}</b><span>AI spend · ${c ? Math.round(c.cache_hit_rate*100) : 0}% cache hits</span></div>`;
-  if (state.docs.some(d => d.status === 'processing' || d.status === 'uploaded')) setTimeout(loadDocs, 1500);
+  // real-time: subscribe to the SSE status stream for every in-flight document (falls back to polling if SSE fails)
+  state.docs.filter(d => d.status === 'processing' || d.status === 'uploaded').forEach(d => watchStatus(d.id));
   if (!state.session && location.hash.startsWith('#session=')) await restoreSession(location.hash.slice(9));
   else if (!state.selected.size && location.hash.startsWith('#doc=')) { const id = location.hash.slice(5); if (state.docs.some(d => d.id === id && d.status === 'ready')) await toggle(id); }
+}
+
+const watching = new Set();
+function watchStatus(id) {
+  if (watching.has(id)) return;
+  watching.add(id);
+  try {
+    const es = new EventSource(`${API}/documents/${id}/status/stream`);
+    es.addEventListener('status', e => {
+      const st = JSON.parse(e.data);
+      const el = document.querySelector(`.doc[data-id="${id}"]`);
+      if (!el) return;
+      const bar = el.querySelector('.bar i'); if (bar) bar.style.width = `${Math.max(8, st.progress * 100)}%`;
+      const badge = el.querySelector('.badge'); if (badge) { badge.textContent = st.status; badge.className = `badge ${st.status}`; }
+      const meta = el.querySelector('.stage'); const done = st.stages.filter(s => s.stage !== 'pipeline' && s.status === 'succeeded').map(s => s.stage);
+      if (meta) meta.textContent = done.length ? `✓ ${done.join(' → ')}` : 'queued…';
+    });
+    es.addEventListener('done', () => { es.close(); watching.delete(id); loadDocs(); });
+    es.addEventListener('error', () => { es.close(); watching.delete(id); setTimeout(loadDocs, 2000); });
+  } catch (e) { watching.delete(id); setTimeout(loadDocs, 1500); }
+}
+
+async function compareSelected() {
+  const [a, b] = [...state.selected];
+  $('#compareBtn').disabled = true; $('#compareBtn').textContent = 'Comparing…';
+  try {
+    const r = await api('/documents/compare', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ document_id_a: a, document_id_b: b }) });
+    if ($('#chat').querySelector('.empty')) $('#chat').innerHTML = '';
+    addMsg('assistant', `<b>Comparison · ${esc(r.document_a.title || r.document_a.filename)} vs ${esc(r.document_b.title || r.document_b.filename)}</b><br><br>${esc(r.comparison)}
+      <div class="sources"><b style="color:var(--ok)">Similarities</b>${r.similarities.map(x => `<div>• ${esc(x)}</div>`).join('')}</div>
+      <div class="sources"><b style="color:var(--warn)">Differences</b>${r.differences.map(x => `<div>• ${esc(x)}</div>`).join('')}</div>
+      <div class="sources"><b>Recommendation</b><div>${esc(r.recommendation)}</div></div>
+      <div class="sources">${(r.usage.input_tokens || 0) + (r.usage.output_tokens || 0)} tokens · $${(r.usage.cost_usd || 0).toFixed(5)}</div>`);
+  } catch (e) { addMsg('sys', 'Compare failed: ' + esc(e.message)); }
+  finally { $('#compareBtn').disabled = false; $('#compareBtn').textContent = '⇄ Compare'; }
 }
 
 async function restoreSession(id) {
@@ -120,7 +156,7 @@ function renderDocs() {
     <div class="doc ${state.selected.has(d.id) ? 'sel' : ''}" data-id="${d.id}">
       <div class="name"><div title="${esc(d.filename)}">${esc(d.title || d.filename)}</div>
         <div class="meta">${esc(d.filename)} · ${d.page_count ?? '?'} p · ${d.chunk_count ?? '?'} chunks ${d.category ? '· ' + d.category : ''}</div>
-        ${d.status !== 'ready' && d.status !== 'failed' ? '<div class="bar"><i style="width:40%"></i></div>' : ''}
+        ${d.status !== 'ready' && d.status !== 'failed' ? '<div class="bar"><i style="width:8%"></i></div><div class="meta stage">queued…</div>' : ''}
         ${d.error ? `<div class="meta" style="color:var(--bad)">${esc(d.error).slice(0,120)}</div>` : ''}
       </div>
       <span class="badge ${d.status}">${d.status}</span>
@@ -135,6 +171,7 @@ async function toggle(id) {
   renderDocs();
   if (state.selected.size === 1) showInsights([...state.selected][0]); else $('#insight').innerHTML = '';
   $('#chatTitle').textContent = state.selected.size ? `Chat · ${state.selected.size} document${state.selected.size > 1 ? 's' : ''}` : 'Chat';
+  $('#compareBtn').style.display = state.selected.size === 2 ? 'inline-block' : 'none';
 }
 
 async function showInsights(id) {

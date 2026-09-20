@@ -12,7 +12,7 @@ debug → tests → docs. Roughly how the work split:
 | Scaffolding | Generated settings, engines, models, Alembic env, docker-compose, Dockerfile, Makefile | Reviewed schema decisions (versioning, per-stage job rows, JSONB insights) |
 | Core code | Wrote chunker, extraction, providers, prompts, retrieval, RAG, Celery pipeline, routers | Directed the order (small verifiable tasks), reviewed diffs |
 | Debugging | Read logs/tracebacks and fixed: Celery config not loaded in the API process; prefork pool crash on macOS + Py3.13; tiktoken download blocked by corporate TLS; `str.format` vs JSON braces in a prompt; failed stage rows lost to transaction rollback | Reproduced via the smoke script, confirmed fixes |
-| Tests | 55 tests (unit + API integration with inline pipeline) + golden eval harness | Asked for edge cases: dedup, versioning, tenant isolation, SSE, blocked-until-ready |
+| Tests | 61 tests / 83% coverage (unit + API integration with inline pipeline) + golden eval harness | Asked for edge cases: dedup, versioning, tenant isolation, SSE, blocked-until-ready |
 | Docs | README, this file, DESIGN.html with Mermaid diagrams | Structure and emphasis |
 
 **What made the AI effective**

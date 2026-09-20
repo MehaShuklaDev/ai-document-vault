@@ -12,7 +12,7 @@ Design Doc https://drive.google.com/file/d/14p5wY9PJBfBZ7jVlskz9mhw680-Geoqn/vie
 |---|---|
 | Run it | [§1](#1-run-it--complete-steps) — Docker Compose, one API key **or** a logged-in Claude CLI |
 | API docs | `http://localhost:8000/docs` (OpenAPI) |
-| Dashboard | `http://localhost:8000/` (upload · status · streaming chat with citations) |
+| Dashboard | `http://localhost:8000/` (upload · live SSE status · insights · extracted fields · streaming chat with citations · 2-doc compare) |
 | Design doc | [`DESIGN.html`](DESIGN.html) — architecture & flows with Mermaid diagrams, printable to PDF |
 | Decisions | [`APPROACH.md`](APPROACH.md) — options considered, why each was chosen, task breakdown |
 | Evaluation | `python scripts/eval.py` — golden Q&A suites, answer accuracy, citation precision/recall, abstention; CI thresholds in [`evals/thresholds.yaml`](evals/thresholds.yaml) |
@@ -186,7 +186,7 @@ make infra      # docker compose up -d db redis   (host ports 5433 / 6380 so a l
 make migrate    # alembic upgrade head
 make api        # uvicorn --reload on :8000            (terminal 1)
 make worker     # celery worker, threads pool           (terminal 2)
-make test       # 59 tests: unit + API integration (integration skips if DB is down)
+make test       # 61 tests, 83% coverage (gate 80%): unit + API integration (integration skips if DB is down)
 make eval       # golden-set evaluation report (answer accuracy, citation P/R, abstention, latency, cost)
 ```
 The default `.env` points at `localhost:5433` / `localhost:6380`, matching `make infra`.
@@ -215,7 +215,7 @@ POST /api/v1/chat/sessions         ──► session over 1..20 documents (multi
 POST /api/v1/chat/sessions/{id}/ask ► grounded answer + verified citations + follow-up questions
 POST /api/v1/chat/sessions/{id}/ask/stream ► same over SSE: status → citations → tokens → follow_ups → done
 GET  /api/v1/chat/sessions/{id}    ──► full history (multi-turn context is server-side)
-GET  /api/v1/metrics/documents | /processing | /costs | /prometheus
+GET  /api/v1/metrics/documents | /processing | /costs | /quota | /prometheus
 GET  /api/v1/health/live | /ready
 ```
 
@@ -304,6 +304,7 @@ Schema managed by Alembic (`alembic/versions`).
 | **Latency** | SSE streaming; embedding batching + Redis cache; answer cache; hybrid search on indexed columns; token-budgeted context |
 | **Cost** | every call priced from a model table into `ai_usage`; `/metrics/costs` by purpose & model; cache hit rate; cheap model for condense/follow-ups |
 | **Rate limiting** | Redis sliding window per user for chat (30/min) and upload (20/min), `429` + `Retry-After`; fails open if Redis is down |
+| **Quota management** | Rolling-24h **spend/token quota per user** (`QUOTA_USD_PER_USER_PER_DAY`, `QUOTA_TOKENS_PER_USER_PER_DAY`) enforced on every AI-spending endpoint (ask, summary, compare, extraction) → `429` with `X-Quota-*` headers; `GET /metrics/quota` shows used vs remaining. Rate limit bounds *burst*, quota bounds *total spend* |
 | **Input hardening** | size limit streamed (413 before buffering), MIME sniffing (415), page & chunk caps, empty-file 400 |
 | **Failure isolation** | per-stage status/error; `POST /reprocess` (`?force=true` for orphaned runs); a broker outage marks the doc `failed` with a clear message instead of a 500 |
 | **Observability** | structlog JSON with request ids, Prometheus histograms/counters, `/health/ready` checks DB + pgvector + Redis |
@@ -345,8 +346,8 @@ Schema managed by Alembic (`alembic/versions`).
 | Document statistics · processing metrics APIs | `GET /metrics/documents`, `GET /metrics/processing` (+ `/costs`, `/prometheus`) |
 | Data storage for metadata, insights, chats, citations, metrics, performance | `app/models.py` (8 tables, see §4) |
 | Multi-doc chat · follow-ups · summary customisation · tagging · sentiment · comparison | bonus features, all implemented |
-| Dashboard · real-time updates · caching · vector DB · streaming · tests | `static/index.html`, SSE for chat **and** status, Redis caches, pgvector, 55 tests + eval |
-| Cost tracking · rate limiting · versioning · batch · logging · health | §5 |
+| Dashboard · real-time updates · caching · vector DB · streaming · tests | `static/index.html` (live SSE status bars, compare button), SSE for chat **and** status, Redis caches, pgvector, 61 tests / 83% coverage + eval |
+| Cost tracking · rate limiting **and quota** · versioning · batch · logging · health | §5 |
 | Not done | OCR for scanned PDFs (clear failure message instead); WebSocket transport (SSE used for both real-time channels) |
 
 ## 8. Project layout
@@ -366,5 +367,5 @@ static/index.html       dashboard
 scripts/demo.py         end-to-end demo · scripts/eval.py golden-set evaluation
 evals/                  runner.py · thresholds.yaml · golden/*.yaml (documents + Q&A + expected sources)
 .github/workflows/ci.yml lint → migrate → tests → strict eval (Fake); nightly eval on a real provider
-tests/                  test_unit.py · test_api.py · test_features.py (rerank, extraction, SSE status) · test_eval.py
+tests/                  test_unit.py · test_api.py · test_features.py (rerank, extraction, SSE status, quota) · test_eval.py — 61 tests, 83% coverage
 ```

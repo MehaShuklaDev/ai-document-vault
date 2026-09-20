@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vault Document AI — Design Document</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: #1a1a2e; background: #f1f5f9; padding: 40px 20px; }
+  .page { max-width: 980px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 56px 64px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+  h1 { font-size: 30px; font-weight: 800; color: #0f172a; padding-bottom: 12px; border-bottom: 3px solid #6366f1; margin-bottom: 6px; }
+  .subtitle { color: #64748b; font-size: 13px; margin-bottom: 10px; }
+  .tagline { color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 36px; border-left: 4px solid #e2e8f0; padding-left: 14px; }
+  h2 { font-size: 17px; font-weight: 700; color: #fff; margin: 44px 0 14px; padding: 10px 18px; background: #6366f1; border-radius: 6px; }
+  h2.green { background: #059669; } h2.blue { background: #0284c7; } h2.orange { background: #d97706; } h2.red { background: #dc2626; } h2.slate { background: #475569; } h2.violet { background: #7c3aed; } h2.teal { background: #0f766e; }
+  h3 { font-size: 13px; font-weight: 700; color: #4f46e5; margin: 18px 0 8px; text-transform: uppercase; letter-spacing: .5px; }
+  p.lead { color: #374151; margin-bottom: 14px; line-height: 1.6; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 7px; line-height: 1.65; color: #374151; }
+  li strong { color: #1e293b; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be123c; }
+  pre { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 14px 16px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; line-height: 1.55; overflow-x: auto; margin: 10px 0 18px; }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  .diagram-wrap { background: #f8faff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin: 14px 0 28px; }
+  .diagram-wrap .mermaid { display: block; width: 100%; }
+  .diagram-wrap .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; min-height: 320px; }
+  .caption { font-size: 12px; color: #64748b; margin-top: 10px; text-align: center; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 8px; }
+  .box { background: #f8faff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 18px; }
+  .box h3 { margin-top: 0; }
+  .badge { display: inline-block; background: #ede9fe; color: #5b21b6; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px; margin: 2px 4px 2px 0; }
+  .badge.green { background: #d1fae5; color: #065f46; } .badge.blue { background: #dbeafe; color: #1e40af; } .badge.red { background: #fee2e2; color: #991b1b; } .badge.orange { background: #ffedd5; color: #9a3412; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 20px; font-size: 13px; }
+  th { text-align: left; background: #f1f5f9; color: #334155; font-weight: 700; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: top; line-height: 1.5; }
+  td code { white-space: nowrap; }
+  .banner { margin: 52px 0 28px; padding: 28px 32px; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-radius: 12px; text-align: center; }
+  .banner .kicker { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #a5b4fc; text-transform: uppercase; margin-bottom: 10px; }
+  .banner .title { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+  .banner .text { font-size: 13px; color: #94a3b8; line-height: 1.7; max-width: 640px; margin: 0 auto; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+  .shot { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f8faff; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot .cap { font-size: 12px; color: #475569; padding: 8px 12px; border-top: 1px solid #e2e8f0; }
+  .shot.wide { grid-column: 1 / -1; }
+  .kv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0 6px; }
+  .kv .stat { background: #f8faff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; }
+  .kv .stat b { display: block; font-size: 20px; color: #0f172a; }
+  .kv .stat span { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .4px; }
+  .pdf-btn { position: fixed; top: 20px; right: 20px; background: #6366f1; color: #fff; border: none; padding: 12px 22px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(99,102,241,.45); z-index: 999; transition: background .15s; }
+  .pdf-btn:hover { background: #4f46e5; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .page { box-shadow: none; border-radius: 0; padding: 28px 36px; }
+    .pdf-btn { display: none; }
+    h2 { page-break-after: avoid; }
+    .diagram-wrap, .two-col, .box, .shot, table, .banner { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<button class="pdf-btn" onclick="window.print()">⬇ Download as PDF</button>
+
+<div class="page">
+
+  <h1>Vault Document AI</h1>
+  <p class="subtitle">System Design Document &nbsp;·&nbsp; FastAPI · Celery + Redis · PostgreSQL 16 + pgvector · OpenAI / Anthropic / Claude CLI · SSE</p>
+  <p class="tagline">
+    "ChatGPT for your documents" as a production-shaped backend — uploads become searchable, summarised, tagged and
+    field-extracted knowledge in seconds; questions get grounded answers whose every citation is verified against the
+    passages the model was actually shown; every AI call is metered; every pipeline stage is observable and retryable.
+  </p>
+
+  <div class="kv">
+    <div class="stat"><b>5</b><span>pipeline stages</span></div>
+    <div class="stat"><b>26</b><span>API endpoints</span></div>
+    <div class="stat"><b>59 + 11</b><span>tests + golden eval cases</span></div>
+    <div class="stat"><b>0</b><span>keys needed to run tests</span></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2>High-Level Architecture</h2>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    User(["Dashboard · curl · SDK"])
+
+    subgraph API["FastAPI — async, N replicas"]
+        UP["POST /documents\nsize limit · MIME sniff · SHA-256 dedup · versioning"]
+        DOC["GET /documents /status /insights /extraction\nPOST /summary /compare /reprocess"]
+        CHAT["POST /chat/sessions/:id/ask  (JSON | SSE)\ncondense → retrieve → generate → verify citations"]
+        MET["GET /metrics/documents · /processing · /costs · /prometheus\nGET /health/live · /ready"]
+    end
+
+    subgraph WK["Celery workers — queue: documents"]
+        T["process_document(version)\nextract → chunk → embed → analyse → structured"]
+    end
+
+    subgraph ST["Storage"]
+        PG[("PostgreSQL 16\ndocuments · versions · chunks (vector + tsvector)\ninsights · sessions · messages\nprocessing_jobs · ai_usage")]
+        RD[("Redis\nbroker · embedding cache\nanswer cache · rate limits")]
+        BL["Blob store\nlocal FS or S3\ncontent-addressed by SHA-256"]
+    end
+
+    subgraph AI["AI providers (auto-resolved)"]
+        LLM["LLM\nOpenAI · Anthropic · Claude CLI"]
+        EMB["Embeddings\nOpenAI · local hashed"]
+    end
+
+    User -->|upload → 202| UP
+    User --> DOC
+    User -->|ask / stream| CHAT
+    User --> MET
+    UP -->|blob| BL
+    UP -->|rows + queued job| PG
+    UP -->|enqueue| RD
+    RD -->|deliver| T
+    T --> BL
+    T -->|chunks · vectors · insights · job rows · usage| PG
+    T -->|batch embed, cache-aside| EMB
+    T -->|analysis · extraction JSON| LLM
+    CHAT -->|hybrid search| PG
+    CHAT -->|query embedding| EMB
+    CHAT -->|condense · answer · follow-ups| LLM
+    CHAT -->|caches · limits| RD
+    </div>
+    <p class="caption">The API never does heavy work: uploads return 202 in milliseconds; chat touches indexed columns plus the model.</p>
+  </div>
+
+  <h3>Why these pieces</h3>
+  <table>
+    <tr><th>Axis</th><th>Chosen</th><th>Considered</th><th>Reason</th></tr>
+    <tr><td>Framework</td><td>FastAPI</td><td>Flask, Django</td><td>Native async, Pydantic contracts, auto OpenAPI docs, SSE-friendly</td></tr>
+    <tr><td>Queue</td><td>Celery + Redis</td><td>RQ, arq, BackgroundTasks</td><td>Retries with back-off, <code>acks_late</code>, time limits, per-queue scaling; BackgroundTasks die with the API</td></tr>
+    <tr><td>Vectors</td><td>pgvector</td><td>Pinecone, Weaviate, FAISS</td><td>One transactional store for metadata + vectors; hybrid search is one SQL query; tenant/version filters are WHERE clauses</td></tr>
+    <tr><td>RAG</td><td>Thin hand-rolled layer</td><td>LangChain, LlamaIndex</td><td>Prompts visible and testable; exact control of chunking, fusion, citation verification; ~500 lines</td></tr>
+    <tr><td>Providers</td><td>auto → OpenAI / Anthropic / Claude CLI</td><td>single vendor</td><td>Key present → that provider; logged-in <code>claude</code> CLI → no key needed; nothing → fail fast (never silent fake)</td></tr>
+  </table>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="green">Feature 1 — Intelligent Ingestion Pipeline</h2>
+  <p class="lead">
+    <strong>Objective:</strong> turn any PDF / DOCX / TXT / MD into searchable chunks and structured insight —
+    asynchronously, idempotently, with per-stage telemetry and clear failure semantics.
+  </p>
+  <div class="two-col">
+    <div class="box">
+      <h3>Upload Handler</h3>
+      <ul>
+        <li><strong>Streamed size check</strong> — reads 1 MB at a time; rejects with <code>413</code> before buffering an oversized file</li>
+        <li><strong>MIME sniffing</strong> — type decided from magic bytes (<code>%PDF</code>, <code>PK\x03\x04</code>), never the client header; unsupported → <code>415</code></li>
+        <li><strong>SHA-256 dedup</strong> — same bytes for the same owner returns the existing document (<code>deduplicated: true</code>), zero reprocessing</li>
+        <li><strong>Versioning</strong> — <code>replace_document_id</code> creates version N+1; chunks and insights hang off the version, so a re-upload never leaves stale vectors</li>
+        <li><strong>202 + job row</strong> — a <code>processing_jobs</code> row is written <em>before</em> enqueueing; a broker outage marks the document <code>failed</code> with guidance instead of a 500</li>
+        <li><strong>Batch</strong> — up to 20 files per request; per-file errors returned, the rest proceed</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Five Stages, One Task per Version</h3>
+      <ul>
+        <li><strong>extract</strong> — pypdf per page · python-docx with headings as sections · text paginated every 3 000 chars; page map kept for citations</li>
+        <li><strong>chunk</strong> — recursive, token-aware, structure-first: headings → paragraphs → sentences → tokens; 400 tokens, 60-token overlap, page range + section per chunk</li>
+        <li><strong>embed</strong> — batches of 100 through a Redis cache keyed by <code>sha256(model+text)</code>; vectors into pgvector (HNSW), generated <code>tsvector</code> (GIN)</li>
+        <li><strong>analyse</strong> — one schema-constrained JSON call on a representative excerpt → title, summary, key points, category, tags, sentiment, entities, language, suggested questions</li>
+        <li><strong>structured</strong> — category picks a schema (invoice, contract, legal, financial, report, policy, research, generic); verbatim field values + confidence; non-fatal</li>
+        <li>Each stage <strong>commits its own job row</strong> — a failure in stage 4 keeps stages 1–3 visible in <code>/status</code> and in metrics</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:20px">Upload &amp; Processing Flow</h3>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant A as FastAPI
+    participant S as Blob store
+    participant P as PostgreSQL
+    participant Q as Redis (broker)
+    participant W as Celery worker
+    participant E as Embeddings
+    participant L as LLM
+    C->>A: POST /documents (multipart)
+    A->>A: stream ≤ 25 MB · sniff MIME · SHA-256
+    A->>P: same hash for this owner?
+    alt duplicate
+        A->>C: 202 deduplicated=true (existing document)
+    else new content
+        A->>S: put(blob keyed by hash)
+        A->>P: documents + document_versions + processing_jobs(queued)
+        A->>Q: process_document(doc_id, version_id)
+        A->>C: 202 {document, task_id}
+    end
+    Q->>W: deliver (acks_late, prefetch 1)
+    W->>P: wipe chunks/insights for this version (idempotent re-run)
+    W->>S: get blob
+    W->>W: extract pages → chunk (400 tok / 60 overlap)
+    W->>P: job(extract) ✓ · job(chunk) ✓
+    W->>E: embed cache misses in batches of 100
+    W->>P: chunks + vectors · job(embed) ✓ · ai_usage
+    W->>L: analysis prompt (JSON) on representative excerpt
+    W->>P: insights · title/category/tags · job(analyse) ✓ · ai_usage
+    W->>L: category → schema → extraction prompt (JSON)
+    W->>P: insights(kind=extraction) · job(structured) ✓ · ai_usage
+    W->>P: document.status = ready
+    C->>A: GET /documents/:id/status/stream (SSE) or poll /status
+    A->>C: status events until ready / failed
+    </div>
+  </div>
+
+  <h3>Document Lifecycle &amp; Failure Classes</h3>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+stateDiagram-v2
+    [*] --> uploaded : POST /documents
+    uploaded --> processing : worker claims job
+    processing --> ready : all stages succeeded
+    processing --> processing : transient error → retry (backoff, ≤ 3)
+    processing --> failed : permanent error or retries exhausted
+    failed --> uploaded : POST /reprocess · re-upload same bytes
+    ready --> uploaded : new version (replace_document_id)
+    ready --> [*] : DELETE (soft; vectors removed)
+    </div>
+  </div>
+  <table>
+    <tr><th>Class</th><th>Examples</th><th>Behaviour</th></tr>
+    <tr><td>Permanent</td><td>encrypted or scanned PDF, empty file, unsupported type</td><td>Document → <code>failed</code> with a human-readable error; no retry</td></tr>
+    <tr><td>Transient</td><td>provider 429/5xx, timeouts, DB blip</td><td>Tenacity retries inside the call (jittered back-off); Celery autoretry ×3; attempt number on every job row</td></tr>
+    <tr><td>Infra</td><td>broker unreachable at upload</td><td>Document → <code>failed</code> with "call /reprocess"; never a 500</td></tr>
+    <tr><td>Orphaned</td><td>worker killed mid-run</td><td><code>/reprocess?force=true</code>; the new run marks stale open jobs "superseded"</td></tr>
+  </table>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="blue">Feature 2 — Document Chat (RAG) with Verified Citations</h2>
+  <p class="lead">
+    <strong>Objective:</strong> accurate, cited answers over one or many documents, with real multi-turn context,
+    sub-second first token, and no answers from outside the documents.
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    Q["question + session (1–20 documents)"] --> H{"history?"}
+    H -->|yes| CQ["condense into standalone question\n(fast model, temperature 0)"]
+    H -->|no| K
+    CQ --> K{"answer cache\nowner · versions · question · model"}
+    K -->|hit| PERSIST
+    K -->|miss| EMB["embed query\n(Redis cache-aside)"]
+    EMB --> V["pgvector cosine\ntop-20"]
+    Q --> F["full-text search\nwebsearch_to_tsquery · top-20"]
+    V --> RRF["Reciprocal Rank Fusion\nscore = Σ 1/(60 + rank)"]
+    F --> RRF
+    RRF --> RR{"RERANK_ENABLED?"}
+    RR -->|no| TRIM
+    RR -->|yes| RK["rerank top-20\ncross-encoder · LLM · lexical\nblend w·rerank + (1−w)·rrf"]
+    RK --> TRIM["top-8 · trimmed to 3 000-token budget"]
+    TRIM --> PROMPT["grounding prompt\n[n] (file, p.X) passages + last 8 turns\n(history stripped of stale [n] markers)"]
+    PROMPT --> GEN["generate — main model\nJSON or SSE token stream"]
+    GEN --> VER["verify citations\ndrop unknown [n] · renumber densely"]
+    VER --> FU["3 follow-up questions\n(fast model, best-effort)"]
+    FU --> PERSIST["persist user + assistant messages\ncitations · follow-ups · usage/cost"]
+    PERSIST --> RESP["response / SSE done"]
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="box">
+      <h3>Hybrid Retrieval</h3>
+      <ul>
+        <li><strong>Dense</strong> — pgvector cosine over HNSW (m=16, ef_construction=64) catches paraphrase ("cost" ≈ "price")</li>
+        <li><strong>Sparse</strong> — PostgreSQL <code>tsvector</code> + GIN catches exact tokens: invoice numbers, names, codes</li>
+        <li><strong>Reciprocal Rank Fusion</strong> — merges the two ranked lists without calibrating incompatible scores</li>
+        <li><strong>Tenant + version scoped</strong> — <code>owner_id</code> and current <code>version_id</code> filters run before ANN</li>
+        <li><strong>Reranker flag</strong> — optional second stage; cross-encoder runs locally at zero API cost; safe fallback if the model can't load</li>
+        <li><strong>Token budget</strong> — at most 8 chunks / 3 000 tokens, so prompt size is bounded regardless of corpus size</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Grounding &amp; Citation Verification</h3>
+      <ul>
+        <li>Passages numbered <code>[n] (file, p.X)</code>; the prompt says <em>use ONLY these</em> and demands a citation after every factual sentence</li>
+        <li>An explicit "I don't know" path gives the model a sanctioned alternative to guessing</li>
+        <li>Numbers, dates and identifiers must be quoted verbatim</li>
+        <li><strong>Code verifies, not trusts</strong> — <code>verify_citations()</code> deletes markers that point at passages never supplied, renumbers the rest, and returns only the citations actually used with file · page · section · snippet</li>
+        <li>History sent to the model has earlier <code>[n]</code> markers stripped and a rule forbidding "corrections" of previous turns — a real-model bug found by the demo</li>
+        <li>Condense-question rewrites "and the disputed invoice?" into a standalone query <em>before</em> retrieval</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:20px">Streaming Contract (SSE)</h3>
+  <pre><code>POST /chat/sessions/{id}/ask/stream
+event: status      {"stage":"understanding"}
+event: status      {"stage":"retrieving","query":"&lt;standalone question&gt;"}
+event: citations   [{"n":1,"filename":"acme-q3.txt","page_start":1,"section":"Risks","snippet":"…"}]   ← before any token
+event: token       {"t":"Revenue "}      … repeated
+event: follow_ups  ["…","…","…"]
+event: done        {"message_id":"…","final_text":"…","citations":[…],"usage":{…}}
+event: error       {"detail":"…","status":409}</code></pre>
+  <ul>
+    <li>Sources arrive <strong>before</strong> tokens so a UI can render the "reading …" state immediately</li>
+    <li><code>done</code> carries the verified final text (hallucinated markers removed) so the client can replace the streamed draft</li>
+    <li><code>GET /documents/{id}/status/stream</code> uses the same transport for processing progress</li>
+  </ul>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="violet">Feature 3 — AI Insights &amp; Structured Extraction</h2>
+  <p class="lead">
+    <strong>Objective:</strong> automate understanding — summaries, tags, sentiment, entities, suggested questions, typed fields — with outputs a program can trust.
+  </p>
+  <div class="two-col">
+    <div class="box">
+      <h3>Schema-Constrained Analysis</h3>
+      <ul>
+        <li>One JSON call returns title, summary, 3–7 key points, category (12-value enum), 3–8 tags, sentiment {label, score, rationale}, entities {people, organizations, dates, amounts}, language, 3–5 suggested questions</li>
+        <li>Enums make <code>GET /documents?category=invoice</code> reliable; length caps keep JSONB small</li>
+        <li>Pydantic normalises (lower-case, dedupe, clamp) so a slightly off response still yields data, not a 500</li>
+        <li><strong>Representative excerpt</strong> — first chunks + evenly spaced samples up to ~6 k tokens: one call, ~10× cheaper than map-reduce; chat still has full-fidelity retrieval</li>
+        <li><strong>Custom summaries</strong> — length (short · medium · long · bullets), tone (neutral · executive · casual · technical), free-text focus; interpolated into one template; cached per options hash</li>
+        <li><strong>Compare</strong> — similarities, differences, recommendation across two documents</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Structured Extraction per Category</h3>
+      <ul>
+        <li>Category → schema registry: <code>invoice</code> (vendor, totals, line items) · <code>contract</code> (parties, term, governing law, obligations) · <code>financial</code>/<code>report</code> (period, revenue, metrics, risks, outlook) · <code>policy</code> · <code>research</code> · <code>legal</code> · <code>generic</code></li>
+        <li>Prompt shows the schema as JSON with type hints; demands <strong>verbatim</strong> values, empty strings when absent, and a <code>confidence</code> score</li>
+        <li>Stored as <code>document_insights.kind = "extraction"</code>; several schemas can coexist per version (cached per schema)</li>
+        <li><code>POST /documents/{id}/extraction {"schema_name":"invoice"}</code> re-runs with any schema; <code>GET /documents/extraction/schemas</code> lists them</li>
+        <li>Adding a category is a data change (one dict entry), not a code change</li>
+        <li>Real run on the sample report: 6/7 fields, confidence 0.9 — revenue, margin, period, metrics, risks, outlook, people</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:20px">Model Routing &amp; Provider Resolution</h3>
+  <table>
+    <tr><th>Purpose</th><th>Tier</th><th>Temperature</th><th>Output handling</th></tr>
+    <tr><td>Chat answer</td><td>main</td><td>0.2</td><td>citations verified programmatically</td></tr>
+    <tr><td>Document analysis · custom summary · comparison · extraction</td><td>main</td><td>0.0–0.2</td><td>JSON → Pydantic → JSONB</td></tr>
+    <tr><td>Condense follow-up</td><td>fast</td><td>0.0</td><td>deterministic → cache hits</td></tr>
+    <tr><td>Follow-up suggestions · LLM rerank</td><td>fast</td><td>0.7 / 0.0</td><td>best-effort; neutral fallback</td></tr>
+  </table>
+  <ul>
+    <li><strong><code>LLM_PROVIDER=auto</code></strong> — <code>OPENAI_API_KEY</code> → OpenAI; <code>ANTHROPIC_API_KEY</code> → Anthropic; logged-in <code>claude</code> CLI → <code>claude-cli</code> (no key, dev/demo); nothing → the app refuses to start with an actionable message. It never silently degrades to fake data</li>
+    <li><strong>Claude CLI provider</strong> — runs <code>claude -p … --output-format json --system-prompt … --tools ""</code>; own system prompt + empty tool list keeps a call at ~1.5 k tokens; cost read from the CLI envelope; developer style plugins neutralised</li>
+    <li><strong>Fake providers</strong> (explicit only) — hashed bag-of-words embeddings and a passage-overlap LLM let the whole system run in CI with zero credentials</li>
+  </ul>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="teal">Data Model</h2>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+erDiagram
+    DOCUMENTS ||--|{ DOCUMENT_VERSIONS : has
+    DOCUMENT_VERSIONS ||--o{ CHUNKS : "split into"
+    DOCUMENT_VERSIONS ||--o{ DOCUMENT_INSIGHTS : "analysed as"
+    DOCUMENTS ||--o{ PROCESSING_JOBS : "tracked by"
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
+    CHAT_SESSIONS }o--o{ DOCUMENTS : "scoped to document_ids[]"
+    AI_USAGE }o--o| DOCUMENTS : "attributed to"
+    AI_USAGE }o--o| CHAT_SESSIONS : "attributed to"
+    DOCUMENTS {
+        uuid id PK
+        string owner_id
+        string filename
+        enum status
+        uuid current_version_id
+        string title
+        string category
+        string_array tags
+        int page_count
+        int chunk_count
+        timestamptz deleted_at
+    }
+    DOCUMENT_VERSIONS {
+        uuid id PK
+        int version
+        char64 sha256
+        string storage_key
+        bigint size_bytes
+    }
+    CHUNKS {
+        uuid id PK
+        string owner_id
+        int chunk_index
+        text content
+        int token_count
+        int page_start
+        int page_end
+        string section
+        vector1536 embedding
+        tsvector content_tsv
+    }
+    DOCUMENT_INSIGHTS {
+        uuid id PK
+        string kind
+        jsonb content
+        jsonb options
+        string options_hash
+        string model
+    }
+    CHAT_SESSIONS {
+        uuid id PK
+        string owner_id
+        uuid_array document_ids
+        int message_count
+    }
+    CHAT_MESSAGES {
+        uuid id PK
+        int seq
+        string role
+        text content
+        text standalone_question
+        jsonb citations
+        jsonb follow_ups
+        jsonb usage
+    }
+    PROCESSING_JOBS {
+        uuid id PK
+        enum stage
+        enum status
+        int attempt
+        int duration_ms
+        jsonb meta
+        text error
+    }
+    AI_USAGE {
+        bigint id PK
+        string purpose
+        string provider
+        string model
+        int input_tokens
+        int output_tokens
+        numeric cost_usd
+        int latency_ms
+        bool cached
+    }
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="box">
+      <h3>Design Notes</h3>
+      <ul>
+        <li>Every user-facing table carries <code>owner_id</code> — multi-tenancy is a WHERE clause</li>
+        <li>Chunks and insights belong to a <strong>version</strong>; a re-upload never leaves stale vectors</li>
+        <li><code>processing_jobs</code> and <code>ai_usage</code> are append-only telemetry — never joined on the hot request path</li>
+        <li>Blobs are content-addressed (<code>aa/bb/sha256</code>) — dedup for free, small directories at scale</li>
+        <li>Schema evolves through Alembic (initial + enum-extension migration)</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Indexes That Matter</h3>
+      <ul>
+        <li><code>chunks.embedding</code> HNSW cosine — ANN search, sub-10 ms at millions of rows</li>
+        <li><code>chunks.content_tsv</code> GIN — full-text half of hybrid search</li>
+        <li><code>chunks(owner_id)</code>, <code>chunks(version_id)</code> — tenant + document scoping before ANN</li>
+        <li><code>document_versions(sha256)</code> — O(1) dedup on upload</li>
+        <li><code>processing_jobs(stage, status, finished_at)</code> — percentiles and failure lists</li>
+        <li><code>ai_usage(owner_id, purpose, created_at)</code> — cost roll-ups</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="slate">API Surface</h2>
+  <table>
+    <tr><th>Method · Path</th><th>Purpose</th><th>Notes</th></tr>
+    <tr><td><code>POST /documents</code> · <code>/batch</code></td><td>Upload</td><td>202; dedup; <code>replace_document_id</code> → new version; 20 files per batch</td></tr>
+    <tr><td><code>GET /documents</code> · <code>/{id}</code></td><td>List · detail</td><td>filters: status, category, tag, q; pagination; versions</td></tr>
+    <tr><td><code>GET /documents/{id}/status</code> · <code>/status/stream</code></td><td>Progress</td><td>latest attempt per stage, errors; SSE until ready/failed</td></tr>
+    <tr><td><code>GET /documents/{id}/insights</code></td><td>AI analysis</td><td>409 until ready</td></tr>
+    <tr><td><code>POST /documents/{id}/summary</code></td><td>Custom summary</td><td>length · tone · focus; cached by options hash</td></tr>
+    <tr><td><code>GET</code>/<code>POST /documents/{id}/extraction</code></td><td>Structured fields</td><td>schema from category or chosen; <code>GET /documents/extraction/schemas</code></td></tr>
+    <tr><td><code>POST /documents/compare</code></td><td>Two-document comparison</td><td>similarities, differences, recommendation</td></tr>
+    <tr><td><code>POST /documents/{id}/reprocess</code> · <code>DELETE</code></td><td>Re-run · soft delete</td><td><code>?force=true</code>; chunks removed immediately</td></tr>
+    <tr><td><code>POST /chat/sessions</code> · <code>GET</code> · <code>GET /{id}</code> · <code>DELETE</code></td><td>Sessions · history</td><td>1–20 documents; server-side multi-turn context</td></tr>
+    <tr><td><code>POST /chat/sessions/{id}/ask</code> · <code>/ask/stream</code></td><td>Ask</td><td>citations, follow-ups, usage, cached flag; SSE variant</td></tr>
+    <tr><td><code>GET /chat/providers</code></td><td>Resolved models</td><td>configured vs resolved provider</td></tr>
+    <tr><td><code>GET /metrics/documents</code> · <code>/processing</code> · <code>/costs</code> · <code>/prometheus</code></td><td>Monitoring</td><td>stats · p50/p95 per stage + failure rate · USD by purpose/model · scrape</td></tr>
+    <tr><td><code>GET /health/live</code> · <code>/ready</code></td><td>Probes</td><td>ready checks DB, pgvector extension, Redis</td></tr>
+  </table>
+  <p style="color:#64748b;font-size:12px">All requests are scoped by <code>X-User-Id</code> (default <code>demo-user</code>); identity is a single dependency — swap for JWT without touching routers.</p>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="banner">
+    <div class="kicker">Non-Functional Requirements</div>
+    <div class="title">Built for Production — Not Just Demo</div>
+    <div class="text">
+      The three features work. The following foundations make them work <em>reliably, safely, and at scale</em> —
+      concurrency, latency, cost, security, observability and quality gates that separate a production system from a prototype.
+    </div>
+  </div>
+
+  <h2 class="red">Security &amp; Input Hardening</h2>
+  <div class="two-col">
+    <div class="box">
+      <h3>Upload Validation</h3>
+      <ul>
+        <li><strong>Size limit enforced while streaming</strong> — the request is rejected with <code>413</code> as soon as the limit is crossed, before the file is buffered</li>
+        <li><strong>Magic-byte MIME detection</strong> — the client's <code>Content-Type</code> is ignored; a renamed executable is rejected with <code>415</code></li>
+        <li><strong>Allowlist</strong> — PDF, DOCX, TXT, Markdown only; page and chunk caps stop pathological documents</li>
+        <li><strong>Stored type is the detected type</strong> — never client-declared metadata</li>
+        <li><strong>Filename truncation</strong> — 512 chars; blobs are addressed by hash, so filenames never touch the filesystem</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Tenancy, Limits &amp; AI Safety</h3>
+      <ul>
+        <li><strong>Tenant isolation</strong> — <code>owner_id</code> on every table and every query; a foreign id returns <code>404</code>, not <code>403</code></li>
+        <li><strong>Rate limiting</strong> — Redis sliding window (atomic Lua): chat 30/min, upload 20/min per user; <code>429</code> + <code>Retry-After</code>; fails <em>open</em> if Redis is down</li>
+        <li><strong>Grounded answers only</strong> — the prompt forbids outside knowledge and the verifier removes citations to passages that were never provided</li>
+        <li><strong>Prompt-injection surface</strong> — document text is placed in numbered passages inside the system prompt with explicit rules; user questions are capped at 4 000 chars</li>
+        <li><strong>No secrets in the repo</strong> — keys via <code>.env</code> (git-ignored); the CLI provider scrubs its environment</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="orange">Concurrency · Latency · Cost · Durability</h2>
+  <h3>Concurrency</h3>
+  <ul>
+    <li><strong>Stateless API and workers</strong> — asyncpg pool (pre-ping, recycle) on the API; Celery <code>acks_late</code> + <code>prefetch_multiplier=1</code> so one slow PDF cannot hold others hostage; soft 10 min / hard 15 min limits</li>
+    <li><strong>Idempotent pipeline</strong> — a run wipes its version's chunks and insights first; a retry after a mid-way crash cannot create duplicate vectors</li>
+    <li><strong>Two engines, one schema</strong> — async (asyncpg) for requests, sync (psycopg 3) for workers and Alembic, both from the same model module</li>
+    <li><strong>Orphan handling</strong> — a new run marks any still-open job rows for that version as "superseded"</li>
+  </ul>
+  <h3>Latency</h3>
+  <ul>
+    <li><strong>Streaming</strong> — first token after retrieval only; sources arrive before tokens</li>
+    <li><strong>Caches</strong> — embeddings (7 days, keyed by model+text) and answers (1 h, keyed by owner · versions · standalone question · model); cache hits are recorded as zero-token usage rows so hit rates are visible</li>
+    <li><strong>Bounded prompts</strong> — 8 chunks / 3 000 tokens regardless of corpus size; analysis works on a ≤ 6 k-token excerpt</li>
+    <li><strong>Indexes first</strong> — tenant btree before HNSW; GIN for full text; no sequential scans on the request path</li>
+  </ul>
+  <h3>Cost</h3>
+  <ul>
+    <li><strong>Every call metered</strong> — provider, model, input/output tokens, USD (price table or provider-reported), latency, cached flag → <code>ai_usage</code></li>
+    <li><strong><code>/metrics/costs</code></strong> — totals, by purpose, by model, cache hit rate, chat latency; per-answer cost is also on each message</li>
+    <li><strong>Cheap model for cheap jobs</strong> — condense, follow-ups and reranking on the fast tier; a full two-document demo costs about $0.09</li>
+  </ul>
+  <h3>Durability &amp; Observability</h3>
+  <ul>
+    <li><strong>Per-stage commits</strong> — job rows survive later failures; <code>/status</code> shows exactly where a document stopped and why</li>
+    <li><strong>Atomic blob writes</strong> — temp file → <code>os.replace</code>; content-addressed, so a partial write can never be mistaken for a complete blob</li>
+    <li><strong>Structured JSON logs</strong> with request ids (<code>X-Request-Id</code> propagated), Prometheus request counters and latency histograms, readiness probe over DB + pgvector + Redis</li>
+    <li><strong>Soft delete</strong> — metadata kept for audit and metrics; searchable content removed immediately</li>
+  </ul>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="slate">Evaluation Harness &amp; Test Coverage</h2>
+  <p style="margin-bottom:12px">
+    <span class="badge green">59 tests</span>
+    <span class="badge green">11 golden eval cases</span>
+    <span class="badge blue">0 failing</span>
+    <span class="badge blue">answer accuracy 1.0 · citation P/R 1.0</span>
+    <span class="badge orange">CI: strict eval on every push · nightly against a real model</span>
+  </p>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    G["evals/golden/*.yaml\ndocuments · questions · expect_any\nexpect_sources · expect_no_answer · turns"] --> U["upload via API\npipeline inline"]
+    U --> A["ask each case\nfresh session · follow-ups"]
+    A --> SC["score\nanswer hit · citation P/R\nabstention · latency · cost"]
+    SC --> T{"thresholds.yaml\nfake: strict · real: nightly"}
+    T -->|pass| OK["report .md / .json\nCI artifact"]
+    T -->|fail| X["exit 1 → red build"]
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="box">
+      <h3>What's Covered — Unit</h3>
+      <ul>
+        <li><strong>Chunker</strong> — budgets, overlap, pages, sections, giant paragraphs, chunk caps</li>
+        <li><strong>Extraction</strong> — MIME sniffing, PDF/DOCX/text, blank-PDF failure path</li>
+        <li><strong>Retrieval</strong> — RRF math, budget trimming, reranker blending and fallbacks</li>
+        <li><strong>RAG glue</strong> — citation verification &amp; renumbering, stale-marker stripping, prompt shape and brace safety</li>
+        <li><strong>Providers</strong> — fake grounding, JSON tolerance, cost table, Claude CLI envelope parsing, auto-resolution and fail-fast</li>
+        <li><strong>Structured</strong> — schema mapping, prompt, normalisation of bad values</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>What's Covered — API Integration</h3>
+      <ul>
+        <li><strong>Upload → status → insights → extraction</strong>; dedup and versioning; validation 413/415/400</li>
+        <li><strong>Tenant isolation</strong>; blocked-until-ready 409s; delete removes from chat</li>
+        <li><strong>Chat</strong> — multi-turn with condensed follow-up, citations, cache hit, history; multi-document; reranker enabled</li>
+        <li><strong>SSE</strong> — event order for chat and status streams</li>
+        <li><strong>Custom summary cache</strong>, compare, all three metrics endpoints, health</li>
+        <li><strong>Golden eval</strong> runs as a test with CI thresholds</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="slate">Real Run — Screenshots</h2>
+  <p class="lead">Produced by <code>python scripts/demo.py</code> against a live stack using Claude (Sonnet for answers and analysis, Haiku for the cheap steps) and captured from the built-in dashboard.</p>
+  <div class="shots">
+    <div class="shot wide"><img src="docs/screenshots/dashboard-chat.png" alt="Dashboard: multi-document chat with citations"><div class="cap">Multi-document chat — grounded answers, verified citations with file/page, follow-up suggestions, per-answer tokens and cost</div></div>
+    <div class="shot"><img src="docs/screenshots/insights-extraction.png" alt="Insights and structured extraction"><div class="cap">AI insights (summary, key points, sentiment, tags, suggested questions) and structured fields extracted with the <code>financial</code> schema</div></div>
+    <div class="shot"><img src="docs/screenshots/swagger.png" alt="OpenAPI docs"><div class="cap">Auto-generated OpenAPI documentation at <code>/docs</code></div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <h2 class="slate">Scalability, Trade-offs &amp; Next Steps</h2>
+  <div class="two-col">
+    <div class="box">
+      <h3>Scaling Path</h3>
+      <ul>
+        <li><strong>Today</strong> — API replicas behind a load balancer; workers scale on queue depth; pgvector HNSW to millions of chunks; Redis caches</li>
+        <li><strong>Next</strong> — S3 blobs (<code>STORAGE_BACKEND=s3</code>, already abstracted); read replica for metrics; priority queues (interactive vs bulk); reranker on where the eval shows precision gains</li>
+        <li><strong>Later</strong> — partition <code>chunks</code> by tenant hash or move vectors behind <code>app/ai/retrieval.py</code> to a dedicated store; worker events over Redis pub/sub feeding the status stream</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Trade-offs Accepted</h3>
+      <ul>
+        <li><strong>Header identity</strong> — real auth plugs into one dependency</li>
+        <li><strong>Sampled excerpt for analysis</strong> — a fact buried mid-document may miss the summary; chat still retrieves everything</li>
+        <li><strong>Reranker off by default</strong> — flip when the eval shows citation precision dropping on a large corpus</li>
+        <li><strong>Fixed 1536-dim column</strong> — switching embedding models needs re-embedding</li>
+        <li><strong>No OCR</strong> — scanned PDFs fail with a clear message; a Tesseract extractor is the next step</li>
+        <li><strong>SSE, not WebSocket</strong> — simpler, proxy-friendly; both real-time channels use it</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose',
+    flowchart: { curve: 'basis', nodeSpacing: 50, rankSpacing: 60, useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true, actorFontSize: 15, noteFontSize: 14, messageFontSize: 14, height: 46 },
+    er: { useMaxWidth: true, minEntityWidth: 120 },
+    themeVariables: { fontSize: '16px', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', primaryColor: '#eef2ff', primaryBorderColor: '#6366f1', lineColor: '#475569', clusterBkg: '#f8faff', clusterBorder: '#c7d2fe' }
+  });
+  // After Mermaid renders, force every SVG to fill its container width
+  window.addEventListener('load', () => setTimeout(() => {
+    document.querySelectorAll('.diagram-wrap .mermaid svg').forEach(svg => { svg.removeAttribute('height'); svg.style.width = '100%'; svg.style.height = 'auto'; });
+  }, 500));
+</script>
+</body>
+</html>

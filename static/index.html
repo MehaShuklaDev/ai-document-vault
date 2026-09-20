@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault · Document AI</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262b36; --ink:#e8eaf0; --muted:#8b93a7; --accent:#5b8def; --ok:#3ccf91; --warn:#f5b84b; --bad:#f06a6a; --cite:#2a3350; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:16px; letter-spacing:.02em; }
+  header small { color:var(--muted); }
+  header input { background:var(--panel); border:1px solid var(--line); color:var(--ink); padding:6px 10px; border-radius:6px; width:160px; }
+  main { display:grid; grid-template-columns: 360px 1fr; gap:16px; padding:16px 20px; height:calc(100vh - 57px); }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto; display:flex; flex-direction:column; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:0 0 10px; }
+  .drop { border:1.5px dashed var(--line); border-radius:8px; padding:18px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop.over { border-color:var(--accent); color:var(--ink); }
+  .doc { display:flex; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:8px; margin-top:8px; cursor:pointer; }
+  .doc.sel { border-color:var(--accent); background:#1b2233; }
+  .doc .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .doc .meta { color:var(--muted); font-size:12px; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:999px; background:#222838; color:var(--muted); }
+  .badge.ready { background:#153a2c; color:var(--ok); } .badge.processing,.badge.uploaded { background:#3a2f15; color:var(--warn); } .badge.failed { background:#3a1a1a; color:var(--bad); }
+  .bar { height:3px; background:#222838; border-radius:2px; margin-top:6px; overflow:hidden; } .bar i { display:block; height:100%; background:var(--accent); transition:width .4s; }
+  .tags span { display:inline-block; font-size:11px; background:#222838; color:var(--muted); padding:1px 7px; border-radius:4px; margin:4px 4px 0 0; }
+  .chat { flex:1; overflow:auto; padding-right:6px; }
+  .msg { max-width:80%; margin:10px 0; padding:10px 14px; border-radius:12px; white-space:pre-wrap; }
+  .msg.user { margin-left:auto; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+  .msg.assistant { background:#1f2430; border-bottom-left-radius:4px; }
+  .msg.sys { color:var(--muted); font-size:12px; background:none; padding:0 4px; max-width:100%; }
+  .cite { display:inline-block; background:var(--cite); color:#9db4ff; font-size:11px; padding:0 5px; border-radius:4px; margin:0 1px; cursor:help; }
+  .sources { margin-top:8px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:6px; }
+  .sources div { margin-top:4px; }
+  .followups button { margin:6px 6px 0 0; font-size:12px; background:#222838; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:4px 10px; cursor:pointer; }
+  form.ask { display:flex; gap:8px; margin-top:10px; }
+  form.ask input { flex:1; background:var(--bg); border:1px solid var(--line); color:var(--ink); padding:10px 12px; border-radius:8px; }
+  button.primary { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; cursor:pointer; font-weight:600; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .insight { font-size:13px; color:var(--muted); margin-top:8px; }
+  .insight b { color:var(--ink); }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:10px; }
+  .stat { background:#1f2430; border-radius:8px; padding:8px 10px; } .stat b { display:block; font-size:18px; } .stat span { font-size:11px; color:var(--muted); }
+  .empty { color:var(--muted); text-align:center; margin:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Vault <small>· chat with your documents</small></h1>
+  <label><small>X-User-Id&nbsp;</small><input id="user" value="demo-user"></label>
+</header>
+<main>
+  <section class="panel">
+    <h2>Documents</h2>
+    <div class="drop" id="drop">Drop PDF / DOCX / TXT / MD here or click to upload<input type="file" id="file" multiple hidden></div>
+    <div id="docs"></div>
+    <div id="insight"></div>
+  </section>
+  <section class="panel">
+    <div class="stats" id="stats"></div>
+    <h2 id="chatTitle">Chat</h2>
+    <div class="chat" id="chat"><div class="empty">Select one or more <b>ready</b> documents, then ask a question.</div></div>
+    <div class="followups" id="followups"></div>
+    <form class="ask" id="ask"><input id="q" placeholder="Ask a question about the selected documents…" autocomplete="off"><button class="primary" id="send">Ask</button></form>
+  </section>
+</main>
+<script>
+const API = '/api/v1';
+const $ = s => document.querySelector(s);
+const state = { docs: [], selected: new Set(), session: null, sessionDocs: '' };
+const hdr = () => ({ 'X-User-Id': $('#user').value || 'demo-user' });
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, { ...opts, headers: { ...hdr(), ...(opts.headers || {}) } });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.status === 204 ? null : r.json();
+}
+
+async function loadDocs() {
+  const page = await api('/documents?limit=50');
+  state.docs = page.items;
+  renderDocs();
+  const m = await api('/metrics/documents').catch(() => null);
+  const c = await api('/metrics/costs').catch(() => null);
+  if (m) $('#stats').innerHTML = `
+    <div class="stat"><b>${m.total}</b><span>documents</span></div>
+    <div class="stat"><b>${m.total_chunks}</b><span>chunks indexed</span></div>
+    <div class="stat"><b>${(m.total_tokens/1000).toFixed(1)}k</b><span>tokens</span></div>
+    <div class="stat"><b>$${c ? c.total_cost_usd.toFixed(4) : '–'}</b><span>AI spend · ${c ? Math.round(c.cache_hit_rate*100) : 0}% cache hits</span></div>`;
+  if (state.docs.some(d => d.status === 'processing' || d.status === 'uploaded')) setTimeout(loadDocs, 1500);
+  if (!state.session && location.hash.startsWith('#session=')) await restoreSession(location.hash.slice(9));
+  else if (!state.selected.size && location.hash.startsWith('#doc=')) { const id = location.hash.slice(5); if (state.docs.some(d => d.id === id && d.status === 'ready')) await toggle(id); }
+}
+
+async function restoreSession(id) {
+  // shareable deep link: /#session=<id> reopens a conversation with its documents selected
+  try {
+    const h = await api(`/chat/sessions/${id}`);
+    state.session = id; state.selected = new Set(h.session.document_ids.filter(d => state.docs.some(x => x.id === d)));
+    state.sessionDocs = [...state.selected].sort().join(',');
+    renderDocs();
+    if (state.selected.size === 1) showInsights([...state.selected][0]);
+    $('#chatTitle').textContent = `Chat · ${state.selected.size} document${state.selected.size > 1 ? 's' : ''}`;
+    $('#chat').innerHTML = '';
+    for (const m of h.messages) {
+      if (m.role === 'user') addMsg('user', esc(m.content));
+      else {
+        const c = m.citations || [];
+        addMsg('assistant', renderCites(m.content, c) + (c.length ? `<div class="sources">Sources${c.map(x => `<div><span class="cite">${x.n}</span> ${esc(x.filename)}${x.page_start ? ', p.' + x.page_start : ''}${x.section ? ' · ' + esc(x.section) : ''}</div>`).join('')}</div>` : '') + (m.usage ? `<div class="sources">${(m.usage.input_tokens || 0) + (m.usage.output_tokens || 0)} tokens · $${(m.usage.cost_usd || 0).toFixed(5)}${m.usage.cached ? ' · cached' : ''}</div>` : ''));
+        if (m.follow_ups && m.follow_ups.length) { $('#followups').innerHTML = m.follow_ups.map(x => `<button>${esc(x)}</button>`).join(''); $('#followups').querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent)); }
+      }
+    }
+  } catch (e) { addMsg('sys', 'Could not restore session: ' + esc(e.message)); }
+}
+
+function renderDocs() {
+  $('#docs').innerHTML = state.docs.map(d => `
+    <div class="doc ${state.selected.has(d.id) ? 'sel' : ''}" data-id="${d.id}">
+      <div class="name"><div title="${esc(d.filename)}">${esc(d.title || d.filename)}</div>
+        <div class="meta">${esc(d.filename)} · ${d.page_count ?? '?'} p · ${d.chunk_count ?? '?'} chunks ${d.category ? '· ' + d.category : ''}</div>
+        ${d.status !== 'ready' && d.status !== 'failed' ? '<div class="bar"><i style="width:40%"></i></div>' : ''}
+        ${d.error ? `<div class="meta" style="color:var(--bad)">${esc(d.error).slice(0,120)}</div>` : ''}
+      </div>
+      <span class="badge ${d.status}">${d.status}</span>
+    </div>`).join('') || '<div class="empty" style="margin-top:20px">No documents yet.</div>';
+  document.querySelectorAll('.doc').forEach(el => el.onclick = () => toggle(el.dataset.id));
+}
+
+async function toggle(id) {
+  const d = state.docs.find(x => x.id === id);
+  if (d.status !== 'ready') return;
+  state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
+  renderDocs();
+  if (state.selected.size === 1) showInsights([...state.selected][0]); else $('#insight').innerHTML = '';
+  $('#chatTitle').textContent = state.selected.size ? `Chat · ${state.selected.size} document${state.selected.size > 1 ? 's' : ''}` : 'Chat';
+}
+
+async function showInsights(id) {
+  try {
+    const i = await api(`/documents/${id}/insights`);
+    $('#insight').innerHTML = `<h2 style="margin-top:16px">Insights</h2>
+      <div class="insight"><b>${esc(i.title)}</b><br>${esc(i.summary)}</div>
+      <div class="insight"><b>Key points</b><ul style="margin:4px 0 0 16px;padding:0">${i.key_points.map(k => `<li>${esc(k)}</li>`).join('')}</ul></div>
+      <div class="insight"><b>Sentiment</b> ${i.sentiment.label} (${i.sentiment.score}) — ${esc(i.sentiment.rationale)}</div>
+      <div class="tags">${i.tags.map(t => `<span>#${esc(t)}</span>`).join('')}</div>
+      <div class="followups" style="margin-top:8px">${i.suggested_questions.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+      <div id="extraction"></div>`;
+    $('#insight').querySelectorAll('button').forEach(b => b.onclick = () => ask(b.dataset.q));
+    try {
+      const x = await api(`/documents/${id}/extraction`);
+      const rows = Object.entries(x.fields).filter(([, v]) => v && (!Array.isArray(v) || v.length));
+      $('#extraction').innerHTML = `<h2 style="margin-top:16px">Extracted fields · ${esc(x.schema_name)} <span class="badge">${Math.round(x.confidence*100)}%</span></h2>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">${rows.map(([k, v]) => `<tr><td style="color:var(--muted);padding:3px 6px 3px 0;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:3px 0">${esc(Array.isArray(v) ? v.map(o => typeof o === 'object' ? Object.values(o).join(' · ') : o).join('; ') : String(v)).slice(0,160)}</td></tr>`).join('') || '<tr><td class="insight">nothing extracted</td></tr>'}</table>`;
+    } catch (e) { $('#extraction').innerHTML = ''; }
+  } catch (e) { $('#insight').innerHTML = `<div class="insight">${esc(e.message)}</div>`; }
+}
+
+async function ensureSession() {
+  const key = [...state.selected].sort().join(',');
+  if (state.session && state.sessionDocs === key) return state.session;
+  const s = await api('/chat/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ document_ids: [...state.selected] }) });
+  state.session = s.id; state.sessionDocs = key;
+  history.replaceState(null, '', `#session=${s.id}`);
+  $('#chat').innerHTML = '';
+  return s.id;
+}
+
+function addMsg(role, html) { const el = document.createElement('div'); el.className = `msg ${role}`; el.innerHTML = html; $('#chat').appendChild(el); $('#chat').scrollTop = 1e9; return el; }
+function renderCites(text, cites) {
+  return esc(text).replace(/\[(\d+)\]/g, (m, n) => { const c = cites.find(x => x.n == n); return c ? `<span class="cite" title="${esc(c.snippet)}">${n}</span>` : m; });
+}
+
+async function ask(q) {
+  if (!state.selected.size) return alert('Select at least one ready document.');
+  if (!q) return;
+  $('#q').value = ''; $('#send').disabled = true; $('#followups').innerHTML = '';
+  try {
+    const sid = await ensureSession();
+    addMsg('user', esc(q));
+    const status = addMsg('sys', 'thinking…');
+    const el = addMsg('assistant', '');
+    let text = '', cites = [];
+    const r = await fetch(`${API}/chat/sessions/${sid}/ask/stream`, { method: 'POST', headers: { ...hdr(), 'content-type': 'application/json' }, body: JSON.stringify({ question: q }) });
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+      let idx; while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const block = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const ev = (block.match(/^event: (.*)$/m) || [])[1]; const data = (block.match(/^data: (.*)$/m) || [])[1];
+        if (!ev || !data) continue; const d = JSON.parse(data);
+        if (ev === 'status') status.textContent = d.stage + (d.query ? ` · "${d.query}"` : '');
+        if (ev === 'citations') cites = d;
+        if (ev === 'token') { text += d.t; el.innerHTML = renderCites(text, cites); $('#chat').scrollTop = 1e9; }
+        if (ev === 'follow_ups') $('#followups').innerHTML = d.map(x => `<button>${esc(x)}</button>`).join('');
+        if (ev === 'done') {
+          status.remove();
+          el.innerHTML = renderCites(d.final_text ?? text, d.citations) + (d.citations.length ? `<div class="sources">Sources${d.citations.map(c => `<div><span class="cite">${c.n}</span> ${esc(c.filename)}${c.page_start ? ', p.' + c.page_start : ''}${c.section ? ' · ' + esc(c.section) : ''}</div>`).join('')}</div>` : '');
+          if (d.usage) el.innerHTML += `<div class="sources">${d.usage.input_tokens + d.usage.output_tokens} tokens · $${(d.usage.cost_usd || 0).toFixed(5)}${d.usage.cached ? ' · cached' : ''}</div>`;
+        }
+        if (ev === 'error') { status.remove(); el.innerHTML = `<span style="color:var(--bad)">${esc(d.detail)}</span>`; }
+      }
+    }
+    $('#followups').querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
+    loadDocs();
+  } catch (e) { addMsg('sys', 'Error: ' + esc(e.message)); }
+  finally { $('#send').disabled = false; }
+}
+
+async function upload(files) {
+  for (const f of files) {
+    const fd = new FormData(); fd.append('file', f);
+    try { await api('/documents', { method: 'POST', body: fd }); } catch (e) { alert(`${f.name}: ${e.message}`); }
+  }
+  loadDocs();
+}
+
+$('#drop').onclick = () => $('#file').click();
+$('#file').onchange = e => upload(e.target.files);
+$('#drop').ondragover = e => { e.preventDefault(); $('#drop').classList.add('over'); };
+$('#drop').ondragleave = () => $('#drop').classList.remove('over');
+$('#drop').ondrop = e => { e.preventDefault(); $('#drop').classList.remove('over'); upload(e.dataTransfer.files); };
+$('#ask').onsubmit = e => { e.preventDefault(); ask($('#q').value.trim()); };
+$('#user').onchange = () => { state.selected.clear(); state.session = null; loadDocs(); };
+loadDocs();
+</script>
+</body>
+</html>

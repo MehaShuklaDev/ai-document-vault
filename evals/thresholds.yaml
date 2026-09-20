@@ -1,0 +1,12 @@
+# Minimum acceptable scores. "fake" runs in CI on every push (deterministic, so strict).
+# "real" runs nightly against the configured provider (model output varies; looser).
+fake:
+  answer_accuracy: 0.9
+  citation_precision: 0.9
+  citation_recall: 0.8
+  abstention_accuracy: 1.0
+real:
+  answer_accuracy: 0.8
+  citation_precision: 0.8
+  citation_recall: 0.7
+  abstention_accuracy: 0.8

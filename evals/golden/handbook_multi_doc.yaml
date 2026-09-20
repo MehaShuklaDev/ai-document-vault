@@ -1,0 +1,39 @@
+name: Handbook + report — multi-document retrieval and abstention
+documents:
+  - file: employee-handbook.md
+    mime: text/markdown
+    text: |
+      # Employee Handbook
+
+      ## Vacation Policy
+      Full-time employees accrue 1.5 vacation days per month, capped at 24 days. Requests must be submitted two weeks in advance through the HR portal.
+
+      ## Remote Work
+      Employees may work remotely up to three days per week with manager approval. Core hours are 10:00 to 15:00 local time.
+
+      ## Expenses
+      Expenses above $500 require pre-approval from a director. Receipts must be uploaded within 30 days.
+  - file: acme-q3-report.txt
+    text: |
+      ACME Corp Quarterly Report Q3 2025
+
+      EXECUTIVE SUMMARY
+      Revenue for the third quarter reached $12.4 million, an increase of 18% year over year. Operating margin improved to 21%.
+
+      OUTLOOK
+      The new Berlin office opens in January 2026 with 40 engineers led by Maria Fontaine.
+cases:
+  - question: How many vacation days do full-time employees accrue per month?
+    expect_any: [["1.5"]]
+    expect_sources: [{file: employee-handbook.md, page: 1}]
+  - question: How many days per week can employees work remotely?
+    expect_any: [["three days", "3 days"]]
+    expect_sources: [{file: employee-handbook.md, page: 1}]
+  - question: What expense amount requires director pre-approval?
+    expect_any: [["$500", "500"]]
+    expect_sources: [{file: employee-handbook.md, page: 1}]
+  - question: How many engineers will the Berlin office have?
+    expect_any: [["40"]]
+    expect_sources: [{file: acme-q3-report.txt, page: 1}]
+  - question: What is the company's parental leave policy?
+    expect_no_answer: true

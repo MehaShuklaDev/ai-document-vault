@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"   # nightly eval against a real provider
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_USER: vault, POSTGRES_PASSWORD: vault, POSTGRES_DB: vault }
+        ports: ["5433:5432"]
+        options: --health-cmd "pg_isready -U vault" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6380:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+asyncpg://vault:vault@localhost:5433/vault
+      REDIS_URL: redis://localhost:6380/0
+      LLM_PROVIDER: fake
+      EMBEDDING_PROVIDER: fake
+      RATE_LIMIT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check . && ruff format --check .
+      - run: alembic upgrade head
+      - run: pytest -q
+      - name: Eval (fake provider, strict thresholds)
+        run: python scripts/eval.py --strict --md eval-report.md --json eval-results.json
+      - uses: actions/upload-artifact@v4
+        with: { name: eval-fake, path: "eval-*.{md,json}" }
+
+  eval-nightly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: test
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_USER: vault, POSTGRES_PASSWORD: vault, POSTGRES_DB: vault }
+        ports: ["5433:5432"]
+        options: --health-cmd "pg_isready -U vault" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6380:6379"]
+    env:
+      DATABASE_URL: postgresql+asyncpg://vault:vault@localhost:5433/vault
+      REDIS_URL: redis://localhost:6380/0
+      LLM_PROVIDER: ${{ vars.EVAL_LLM_PROVIDER || 'openai' }}
+      EMBEDDING_PROVIDER: openai
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RATE_LIMIT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: alembic upgrade head
+      - name: Eval (real provider, nightly thresholds)
+        run: python scripts/eval.py --strict --md eval-report.md --json eval-results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: eval-real, path: "eval-*.{md,json}" }

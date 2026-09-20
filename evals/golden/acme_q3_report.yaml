@@ -1,0 +1,34 @@
+name: ACME Q3 report — single financial document
+documents:
+  - file: acme-q3-report.txt
+    text: |
+      ACME Corp Quarterly Report Q3 2025
+
+      EXECUTIVE SUMMARY
+      Revenue for the third quarter reached $12.4 million, an increase of 18% year over year. Operating margin improved to 21%. The board approved a dividend of $0.15 per share payable on November 30, 2025.
+
+      RISKS
+      Supply chain delays in the Singapore facility caused a two-week shipment backlog. Invoice INV-88213 from Delta Logistics totalling $48,900 remains disputed. Management expects resolution by December.
+
+      OUTLOOK
+      ACME expects Q4 revenue between $13.0 and $13.6 million. The new Berlin office opens in January 2026 with 40 engineers led by Maria Fontaine.
+cases:
+  - question: What was ACME's revenue in Q3 2025?
+    expect_any: [["$12.4 million", "12.4 million"]]
+    expect_sources: [{file: acme-q3-report.txt, page: 1}]
+  - question: Who leads the Berlin office?
+    expect_any: [["Maria Fontaine"]]
+    expect_sources: [{file: acme-q3-report.txt, page: 1}]
+  - question: Which invoice is disputed and for how much?
+    expect_any: [["INV-88213"], ["$48,900", "48,900"]]
+    expect_sources: [{file: acme-q3-report.txt, page: 1}]
+  - question: What dividend was approved and when is it payable?
+    expect_any: [["$0.15", "0.15 per share"], ["November 30, 2025"]]
+    expect_sources: [{file: acme-q3-report.txt, page: 1}]
+  - turns:
+      - question: What is the Q4 revenue outlook?
+        expect_any: [["$13.0", "13.0"], ["13.6"]]
+        expect_sources: [{file: acme-q3-report.txt, page: 1}]
+      - question: and what caused the shipment backlog?
+        expect_any: [["Singapore"], ["supply chain", "delays"]]
+        expect_sources: [{file: acme-q3-report.txt, page: 1}]

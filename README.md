@@ -6,6 +6,8 @@ entities, suggested questions), and chat with one or many documents through a RA
 pipeline that returns grounded answers with verified citations. Every stage is
 asynchronous, observable and cost-tracked.
 
+Design Doc https://drive.google.com/file/d/14p5wY9PJBfBZ7jVlskz9mhw680-Geoqn/view?usp=sharing
+
 | | |
 |---|---|
 | Run it | [§1](#1-run-it--complete-steps) — Docker Compose, one API key **or** a logged-in Claude CLI |
